@@ -1,0 +1,91 @@
+<!-- Retro-analog telemetry design (drivable SVG template for render_overlay_svg.py).
+     Authored in a 405x720 space (viewBox); the renderer rasterizes to 1080x1920.
+     Dynamic values use double-brace expr placeholders bound to telemetry channels;
+     see DESIGNS.md for the full channel list. Warm paper/ink/red palette, Consolas
+     monospace, hard offset "sticker" shadows. Static parts (dial face, ticks) are
+     just plain SVG; only the needle, numbers, clock and card values are bound. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 405 720" font-family="Consolas">
+  <defs>
+    <linearGradient id="vigTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1E1810" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#1E1810" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="vigBot" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1E1810" stop-opacity="0"/>
+      <stop offset="1" stop-color="#1E1810" stop-opacity="0.38"/>
+    </linearGradient>
+  </defs>
+
+  <!-- warm vignette (top + bottom) -->
+  <rect x="0" y="0" width="405" height="129.6" fill="url(#vigTop)"/>
+  <rect x="0" y="374.4" width="405" height="345.6" fill="url(#vigBot)"/>
+
+  <!-- ===== speed dial (static face + ticks) ===== -->
+  <circle cx="88" cy="498" r="70" fill="#2E2418"/>                                <!-- hard shadow -->
+  <circle cx="88" cy="494" r="70" fill="#F3EAD8" fill-opacity="0.902"
+          stroke="#2E2418" stroke-width="2"/>                                    <!-- cream face -->
+  <circle cx="88" cy="494" r="65" fill="none" stroke="#E4D7BD"
+          stroke-opacity="0.902" stroke-width="5"/>                              <!-- inset ring -->
+  <g stroke="#2E2418" stroke-width="2" stroke-linecap="round">                   <!-- 13 rim ticks -->
+    <line x1="56.50" y1="531.53" x2="48.40" y2="541.19"/>
+    <line x1="42.57" y1="512.36" x2="30.88" y2="517.08"/>
+    <line x1="39.27" y1="488.88" x2="26.74" y2="487.56"/>
+    <line x1="47.38" y1="466.60" x2="36.93" y2="459.55"/>
+    <line x1="64.99" y1="450.74" x2="59.08" y2="439.61"/>
+    <line x1="88.00" y1="445.00" x2="88.00" y2="432.40"/>
+    <line x1="111.01" y1="450.74" x2="116.92" y2="439.61"/>
+    <line x1="128.62" y1="466.60" x2="139.07" y2="459.55"/>
+    <line x1="136.73" y1="488.88" x2="149.26" y2="487.56"/>
+    <line x1="133.43" y1="512.36" x2="145.12" y2="517.08"/>
+    <line x1="119.50" y1="531.53" x2="127.60" y2="541.19"/>
+    <line x1="98.19" y1="541.93" x2="100.81" y2="554.25"/>
+    <line x1="74.50" y1="541.10" x2="71.02" y2="553.22"/>
+  </g>
+
+  <!-- ===== speed dial (dynamic needle + numbers) ===== -->
+  <g transform="rotate({{ -125 + 250*clamp(speed/60,0,1) | .2f }} 88 494)">
+    <rect x="86" y="442" width="4" height="52" fill="#C2452D"/>
+  </g>
+  <circle cx="88" cy="494" r="7" fill="#2E2418"/>
+  <text x="88" y="522" font-size="24" font-weight="bold" text-anchor="middle"
+        dominant-baseline="central" fill="#2E2418">{{ speed | .0f }}</text>
+  <text x="88" y="539" font-size="8" text-anchor="middle" dominant-baseline="central"
+        letter-spacing="2.24" fill="#2E2418">KM/H</text>
+
+  <!-- ===== time pill (top-left, cream) ===== -->
+  <rect x="18" y="58" width="116" height="21.5" rx="10.75" fill="#2E2418"/>
+  <rect x="18" y="56" width="116" height="21.5" rx="10.75" fill="#F3EAD8"
+        fill-opacity="0.902" stroke="#2E2418" stroke-width="1.5"/>
+  <text x="32" y="66.75" font-size="11.5" dominant-baseline="central"
+        letter-spacing="1.61" fill="#2E2418">{{ clock12 }}</text>
+
+  <!-- ===== DIST / GRADE pill (dark, above dial) ===== -->
+  <rect x="18" y="389.5" width="192" height="24.5" rx="12.25" fill="#2E2418"/>
+  <rect x="18" y="387.5" width="192" height="24.5" rx="12.25"
+        fill="#2E2418" fill-opacity="0.902"/>
+  <!-- tspans kept on ONE line: xml:space=preserve would otherwise render the
+       source indentation as leading blanks and shove the text right -->
+  <text x="32" y="399.75" font-size="12.5" dominant-baseline="central" xml:space="preserve"><tspan fill="#CDBB96">DIST </tspan><tspan fill="#F3EAD8">{{ dist_km | .1f }}km</tspan><tspan fill="#CDBB96">  GRADE </tspan><tspan fill="#F3EAD8">{{ grade | +.0f }}%</tspan></text>
+
+  <!-- ===== HEART card (right of dial) ===== -->
+  <rect x="172" y="439" width="112" height="52" rx="10" fill="#2E2418"/>
+  <rect x="172" y="437" width="112" height="52" rx="10" fill="#F3EAD8"
+        fill-opacity="0.902" stroke="#2E2418" stroke-width="1.5"/>
+  <text x="184" y="452" font-size="8" font-weight="bold" dominant-baseline="central"
+        letter-spacing="1.44" fill="#8A6F4D">HEART</text>
+  <text x="184" y="473" font-size="17" font-weight="bold" dominant-baseline="central"
+        fill="#C2452D">{{ hr | .0f }}</text>
+  <path transform="translate(216 465.5) scale(0.469)"
+        d="M16 28 C16 28 3 19.5 3 11 C3 6.3 6.8 4 9.8 4 C12.8 4 15.2 6.2 16 8
+           C16.8 6.2 19.2 4 22.2 4 C25.2 4 29 6.3 29 11 C29 19.5 16 28 16 28 Z"
+        fill="#C2452D"/>
+
+  <!-- ===== ELEV card (right of dial) ===== -->
+  <rect x="172" y="500" width="112" height="52" rx="10" fill="#2E2418"/>
+  <rect x="172" y="498" width="112" height="52" rx="10" fill="#F3EAD8"
+        fill-opacity="0.902" stroke="#2E2418" stroke-width="1.5"/>
+  <text x="184" y="513" font-size="8" font-weight="bold" dominant-baseline="central"
+        letter-spacing="1.44" fill="#8A6F4D">ELEV</text>
+  <text x="184" y="534" font-size="17" font-weight="bold" dominant-baseline="central"
+        fill="#2E2418">{{ ele | .0f }} m</text>
+</svg>

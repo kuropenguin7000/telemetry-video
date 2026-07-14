@@ -1,0 +1,61 @@
+<svg viewBox="0 0 405 720" xmlns="http://www.w3.org/2000/svg">
+<!--
+  map_track — simple + elegant HUD with live route tracking.
+
+  Map channels (0..100 box, north up, provided by the engine):
+    track_points  full-ride polyline "x,y x,y ..."  (constant)
+    track_len     total arc length of that polyline (constant)
+    track_dist    arc length traveled so far        (per frame)
+    pos_x, pos_y  current position                  (per frame)
+  The traveled trail is the full route drawn with
+  stroke-dasharray="{{ track_dist }} {{ track_len }}".
+
+  Layout stays inside the social-media safe box: x 16..345, y 56..585.
+-->
+<defs>
+  <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+    <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000000" flood-opacity="0.5"/>
+  </filter>
+</defs>
+
+<g opacity="{{ clamp(clip_t/0.45, 0, 1) | .2f }}">
+
+  <!-- ················ map card (top-left) ················ -->
+  <g filter="url(#soft)">
+    <rect x="24" y="64" width="150" height="150" rx="16" fill="#0B1014" fill-opacity="0.52" stroke="#FFFFFF" stroke-opacity="0.15" stroke-width="0.75"/>
+  </g>
+  <g transform="translate(37 77) scale(1.24)">
+    <!-- full route, faint -->
+    <polyline points="{{ track_points }}" fill="none" stroke="#FFFFFF" stroke-opacity="0.30" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+    <!-- traveled so far, mint -->
+    <polyline points="{{ track_points }}" fill="none" stroke="#57D9C6" stroke-width="1.9" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="{{ track_dist | .2f }} {{ track_len + 5 | .2f }}"/>
+    <!-- position: sonar ping + dot -->
+    <circle cx="{{ pos_x | .2f }}" cy="{{ pos_y | .2f }}" r="{{ 4 + 7*((clip_t*0.7) % 1) | .2f }}" fill="none" stroke="#57D9C6" stroke-opacity="{{ 0.45*(1 - ((clip_t*0.7) % 1)) | .2f }}" stroke-width="1.2"/>
+    <circle cx="{{ pos_x | .2f }}" cy="{{ pos_y | .2f }}" r="3.2" fill="#57D9C6" stroke="#0B1014" stroke-width="1.1"/>
+  </g>
+
+  <!-- ················ clock (top-right) ················ -->
+  <g filter="url(#soft)">
+    <text x="340" y="88" text-anchor="end" font-family="Segoe UI" font-weight="300" font-size="17" letter-spacing="1.5" fill="#FFFFFF" fill-opacity="0.92">{{ clock24 }}</text>
+  </g>
+
+  <!-- ················ stats (bottom-left) ················ -->
+  <g filter="url(#soft)" font-family="Segoe UI">
+    <!-- hairline stat row -->
+    <text x="24" y="502" font-size="9" font-weight="600" letter-spacing="2.5" fill="#FFFFFF" fill-opacity="0.55">DIST</text>
+    <text x="24" y="524" font-size="19" font-weight="300" fill="#FFFFFF" fill-opacity="0.92">{{ dist_km | .1f }}<tspan font-size="11" fill-opacity="0.6" dx="3">km</tspan></text>
+
+    <text x="118" y="502" font-size="9" font-weight="600" letter-spacing="2.5" fill="#FFFFFF" fill-opacity="0.55">ELEV</text>
+    <text x="118" y="524" font-size="19" font-weight="300" fill="#FFFFFF" fill-opacity="0.92">{{ ele | .0f }}<tspan font-size="11" fill-opacity="0.6" dx="3">m</tspan></text>
+
+    <text x="212" y="502" font-size="9" font-weight="600" letter-spacing="2.5" fill="#FFFFFF" fill-opacity="0.55">HEART</text>
+    <circle cx="216" cy="518" r="2.6" fill="{{ zone_color(hr) }}"/>
+    <text x="224" y="524" font-size="19" font-weight="300" fill="#FFFFFF" fill-opacity="0.92">{{ hr | .0f }}<tspan font-size="11" fill-opacity="0.6" dx="3">bpm</tspan></text>
+
+    <!-- hero speed -->
+    <text x="95" y="578" text-anchor="end" font-weight="200" font-size="62" fill="#FFFFFF" fill-opacity="0.96">{{ speed | .0f }}</text>
+    <text x="103" y="578" font-size="13" font-weight="400" letter-spacing="1.5" fill="#FFFFFF" fill-opacity="0.6">KM/H</text>
+  </g>
+
+</g>
+</svg>

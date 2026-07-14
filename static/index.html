@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GPX Telemetry Studio</title>
+<link rel="stylesheet" href="style.css?v=2">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🚴</text></svg>">
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <span class="logo">🚴</span>
+    <div>
+      <h1>GPX Telemetry Studio</h1>
+      <p>Transparent overlay videos for CapCut — GPX + SVG design in, qtrle <code>.mov</code> out</p>
+    </div>
+  </div>
+  <div id="ffmpeg-warning" class="banner hidden">
+    ⚠️ ffmpeg not found — install with <code>winget install Gyan.FFmpeg</code> or set <code>FFMPEG_PATH</code>. Previews work, video rendering won't.
+  </div>
+</header>
+
+<main>
+  <section class="steps">
+
+    <!-- 1 · GPX -->
+    <div class="card" id="card-gpx">
+      <div class="card-head"><span class="step-n">1</span><h2>Ride (GPX)</h2>
+        <span class="tz-wrap">UTC<input id="tz" type="number" step="0.5" value="7" title="timezone offset (hours)"></span>
+      </div>
+      <div class="drop" id="drop-gpx">
+        <input type="file" id="file-gpx" accept=".gpx" hidden>
+        <p><strong>Drop a .gpx here</strong> or click to browse</p>
+      </div>
+      <div id="ride-info" class="info hidden"></div>
+    </div>
+
+    <!-- 2 · Design -->
+    <div class="card" id="card-design">
+      <div class="card-head"><span class="step-n">2</span><h2>Design (SVG)</h2></div>
+      <div class="chips" id="design-chips"></div>
+      <div class="drop drop-slim" id="drop-design">
+        <input type="file" id="file-design" accept=".svg" hidden>
+        <p>Drop a custom <strong>.svg</strong> template or click to browse</p>
+      </div>
+      <div id="design-error" class="error hidden"></div>
+    </div>
+
+    <!-- 3 · Time range -->
+    <div class="card" id="card-time">
+      <div class="card-head"><span class="step-n">3</span><h2>Clip time</h2></div>
+      <div class="time-row">
+        <label>Start <input id="t-start" type="text" placeholder="HH:MM:SS" spellcheck="false"></label>
+        <label>End <input id="t-end" type="text" placeholder="HH:MM:SS" spellcheck="false"></label>
+      </div>
+      <div class="quick">
+        <span>End = start +</span>
+        <button data-dur="30">30 s</button>
+        <button data-dur="60">1 min</button>
+        <button data-dur="180">3 min</button>
+      </div>
+      <div id="time-error" class="error hidden"></div>
+    </div>
+
+    <!-- 4 · Render -->
+    <div class="card" id="card-render">
+      <div class="card-head"><span class="step-n">4</span><h2>Render</h2>
+        <select id="alpha" title="output codec">
+          <option value="qtrle" selected>qtrle .mov — transparent, CapCut ✓</option>
+          <option value="prores">ProRes 4444 .mov — transparent, huge files</option>
+        </select>
+      </div>
+      <button id="btn-render" class="primary" disabled>Render video</button>
+      <div id="job-list"></div>
+    </div>
+
+  </section>
+
+  <!-- Preview -->
+  <aside class="preview-pane">
+    <div class="preview-head">
+      <h2>Preview</h2>
+      <label class="toggle"><input type="checkbox" id="safe-toggle" checked> safe zones</label>
+    </div>
+    <div class="frame-box">
+      <div class="checker"></div>
+      <img id="preview-img" alt="">
+      <div id="safe-overlay">
+        <div class="unsafe top"></div><div class="unsafe bottom"></div>
+        <div class="unsafe left"></div><div class="unsafe right"></div>
+        <div class="safe-rect"></div>
+      </div>
+      <div id="preview-empty" class="preview-msg">Upload a GPX and pick a design<br>to see a live preview</div>
+      <div id="preview-spin" class="preview-msg hidden"><span class="spinner"></span></div>
+    </div>
+    <div class="scrub">
+      <input id="preview-slider" type="range" min="0" max="1000" value="500" disabled>
+      <div class="scrub-labels"><span id="scrub-start">–</span><span id="scrub-at">–</span><span id="scrub-end">–</span></div>
+    </div>
+  </aside>
+</main>
+
+<div id="toast" class="hidden"></div>
+<script src="app.js?v=2"></script>
+</body>
+</html>
