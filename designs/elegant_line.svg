@@ -1,0 +1,57 @@
+<!-- Elegant-line telemetry design (drivable SVG template).
+     Authored in a 405x720 space (viewBox); the renderer rasterizes to 1080x1920.
+     Restraint over decoration: white type at graded opacity, one soft accent,
+     an ultralight speed readout, a hairline clip-progress line, a tidy stat row.
+     Segoe UI (Light weights). Uses only core channels, so it also works with the
+     gpx-overlay CLI renderer. Content stays inside the 405x720 safe zone
+     (x in [16,345], y in [56,585]). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 405 720" font-family="Segoe UI">
+  <defs>
+    <!-- soft legibility shadow so white type survives over bright footage -->
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="1" stdDeviation="2.5" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+
+  <!-- clock, top-center, airy tracking -->
+  <text x="202.5" y="66" text-anchor="middle" font-size="14" font-weight="300"
+        letter-spacing="4" fill="#ffffff" fill-opacity="0.9"
+        filter="url(#soft)">{{ clock24 }}</text>
+
+  <!-- lower cluster, lifted to clear the bottom caption bar -->
+  <g transform="translate(0 -26)">
+
+    <!-- ultralight speed readout, center -->
+    <text x="202.5" y="472" text-anchor="middle" dominant-baseline="central"
+          font-size="96" font-weight="200" fill="#ffffff"
+          filter="url(#soft)">{{ speed | .0f }}</text>
+    <text x="202.5" y="522" text-anchor="middle" font-size="12" font-weight="600"
+          letter-spacing="6" fill="#ffffff" fill-opacity="0.62"
+          filter="url(#soft)">KM/H</text>
+
+    <!-- hairline clip-progress line with a soft accent marker -->
+    <g filter="url(#soft)">
+      <line x1="40" y1="556" x2="365" y2="556" stroke="#ffffff"
+            stroke-opacity="0.16" stroke-width="1.5"/>
+      <line x1="40" y1="556" x2="{{ 40 + 325*clamp(clip_t/clip_dur,0,1) | .1f }}" y2="556"
+            stroke="#9BE3D6" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="{{ 40 + 325*clamp(clip_t/clip_dur,0,1) | .1f }}" cy="556" r="3.2"
+              fill="#9BE3D6"/>
+    </g>
+
+    <!-- stat row: DIST | HR | ELEV, label over value -->
+    <g text-anchor="middle" fill="#ffffff" fill-opacity="0.5" font-size="10"
+       font-weight="600" letter-spacing="2.5" filter="url(#soft)">
+      <text x="96"    y="590">DIST</text>
+      <text x="202.5" y="590">HEART</text>
+      <text x="309"   y="590">ELEV</text>
+    </g>
+    <g text-anchor="middle" fill="#ffffff" font-size="24" font-weight="300"
+       filter="url(#soft)">
+      <text x="96"    y="618">{{ dist_km | .1f }}<tspan font-size="12" font-weight="400" fill-opacity="0.6"> km</tspan></text>
+      <text x="202.5" y="618">{{ hr | .0f }}<tspan font-size="12" font-weight="400" fill-opacity="0.6"> bpm</tspan></text>
+      <text x="309"   y="618">{{ ele | .0f }}<tspan font-size="12" font-weight="400" fill-opacity="0.6"> m</tspan></text>
+    </g>
+
+  </g>
+</svg>
