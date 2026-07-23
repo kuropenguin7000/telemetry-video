@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GPX Telemetry Studio</title>
-<link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="style.css?v=5">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>🚴</text></svg>">
 </head>
 <body>
@@ -60,6 +60,8 @@
         <button data-dur="30">30 s</button>
         <button data-dur="60">1 min</button>
         <button data-dur="180">3 min</button>
+        <button data-dur="600">10 min</button>
+        <button data-dur="3600">1 h</button>
       </div>
       <div id="time-error" class="error hidden"></div>
     </div>
@@ -81,19 +83,29 @@
   <!-- Preview -->
   <aside class="preview-pane">
     <div class="preview-head">
-      <h2>Preview</h2>
-      <label class="toggle"><input type="checkbox" id="safe-toggle" checked> safe zones</label>
-    </div>
-    <div class="frame-box">
-      <div class="checker"></div>
-      <img id="preview-img" alt="">
-      <div id="safe-overlay">
-        <div class="unsafe top"></div><div class="unsafe bottom"></div>
-        <div class="unsafe left"></div><div class="unsafe right"></div>
-        <div class="safe-rect"></div>
+      <h2>Preview <span id="canvas-info" class="canvas-info"></span></h2>
+      <div class="preview-ctrls">
+        <label class="bg-btn" title="Preview the overlay over a still from your footage">
+          <input type="file" id="bg-file" accept="image/*" hidden>🖼 background
+        </label>
+        <button id="bg-clear" class="bg-clear hidden" title="Remove background image">✕</button>
+        <label class="toggle"><input type="checkbox" id="safe-toggle" checked> safe zones</label>
+        <button id="zoom-btn" class="zoom-btn" title="Enlarge preview (or click the frame · Esc to close)">⤢</button>
       </div>
-      <div id="preview-empty" class="preview-msg">Upload a GPX and pick a design<br>to see a live preview</div>
-      <div id="preview-spin" class="preview-msg hidden"><span class="spinner"></span></div>
+    </div>
+    <div id="frame-slot">
+      <div class="frame-box" title="Click to enlarge">
+        <div class="checker"></div>
+        <img id="bg-img" alt="">
+        <img id="preview-img" alt="">
+        <div id="safe-overlay">
+          <div class="unsafe top"></div><div class="unsafe bottom"></div>
+          <div class="unsafe left"></div><div class="unsafe right"></div>
+          <div class="safe-rect"></div>
+        </div>
+        <div id="preview-empty" class="preview-msg">Upload a GPX and pick a design<br>to see a live preview</div>
+        <div id="preview-spin" class="preview-msg hidden"><span class="spinner"></span></div>
+      </div>
     </div>
     <div class="scrub">
       <input id="preview-slider" type="range" min="0" max="1000" value="500" disabled>
@@ -102,7 +114,13 @@
   </aside>
 </main>
 
+<!-- enlarged preview: the live .frame-box is moved in here, not cloned -->
+<div id="zoom" class="hidden">
+  <div id="zoom-slot"></div>
+  <button id="zoom-close" title="Close (Esc)">✕</button>
+</div>
+
 <div id="toast" class="hidden"></div>
-<script src="app.js?v=2"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

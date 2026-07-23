@@ -5,7 +5,7 @@ Run:  python app.py   (serves http://127.0.0.1:8765 and opens the browser)
 Upload a GPX + an SVG design (or pick a bundled preset), choose a start/end
 clock time, preview a frame, then render a transparent qtrle .mov for CapCut.
 """
-import os, queue, threading, time, uuid, webbrowser
+import math, os, queue, threading, time, uuid, webbrowser
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Form, HTTPException, UploadFile
@@ -66,6 +66,18 @@ def _get_template(design_id):
         raise HTTPException(404, "design not found — upload it again")
     with open(DESIGNS[design_id]["path"], "r", encoding="utf-8") as f:
         return engine.load_template(f.read())
+
+
+def _design_public(design_id):
+    """Design entry + the output canvas its SVG asks for (read fresh from disk)."""
+    d = DESIGNS[design_id]
+    try:
+        w, h = engine.canvas_size(_get_template(design_id))
+    except Exception:
+        w, h = engine.W, engine.H
+    g = math.gcd(w, h)
+    return {"id": design_id, "name": d["name"], "preset": d["preset"],
+            "w": w, "h": h, "ratio": f"{w // g}:{h // g}"}
 
 
 def _parse_range(ride, start, end):
@@ -162,8 +174,7 @@ def set_tz(gpx_id: str, tz: float = Form(...)):
 
 @app.get("/api/designs")
 def list_designs():
-    return [{"id": k, "name": v["name"], "preset": v["preset"]}
-            for k, v in DESIGNS.items()]
+    return [_design_public(k) for k in DESIGNS]
 
 
 @app.post("/api/design")
@@ -180,7 +191,7 @@ async def upload_design(file: UploadFile):
         f.write(raw)
     name = os.path.splitext(file.filename or "custom")[0]
     DESIGNS[design_id] = {"name": name, "path": path, "preset": False}
-    return {"id": design_id, "name": name, "preset": False}
+    return _design_public(design_id)
 
 
 @app.post("/api/preview")

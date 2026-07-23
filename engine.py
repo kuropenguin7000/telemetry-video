@@ -15,7 +15,9 @@ import numpy as np
 from PIL import Image
 import resvg_py
 
-W, H, FPS = 1080, 1920, 30
+W, H, FPS = 1080, 1920, 30      # default canvas (9:16) when a design says nothing
+SHORT_SIDE = 1080               # output: short side 1080 -> 9:16 is 1080x1920,
+MAX_LONG = 3840                 # 16:9 is 1920x1080, 1:1 is 1080x1080
 HR_MAX = 190.0
 
 NS = {"g": "http://www.topografix.com/GPX/1/1",
@@ -35,6 +37,43 @@ def find_ffmpeg():
         r"%LOCALAPPDATA%\Microsoft\WinGet\Packages\Gyan.FFmpeg*\**\bin\ffmpeg.exe"),
         recursive=True)
     return hits[0] if hits else None
+
+
+# ---------------------------------------------------------------- canvas size
+_SVG_TAG = re.compile(r"<svg\b[^>]*>", re.S | re.I)
+_VIEWBOX = re.compile(r'viewBox\s*=\s*"([^"]+)"', re.I)
+_SVG_WH = re.compile(r'\b(width|height)\s*=\s*"\s*([\d.]+)\s*(?:px)?\s*"', re.I)
+
+
+def canvas_size(tmpl):
+    """Output pixel size for a design, from its <svg> viewBox (or width/height).
+
+    The aspect ratio is the design's; the short side is scaled to SHORT_SIDE, so
+    a 405x720 template renders 1080x1920 (9:16) and a 720x405 one 1920x1080
+    (16:9). Falls back to the default portrait canvas if the tag says nothing.
+    """
+    m = _SVG_TAG.search(tmpl)
+    w = h = 0.0
+    if m:
+        tag = m.group(0)
+        vb = _VIEWBOX.search(tag)
+        if vb:
+            parts = vb.group(1).replace(",", " ").split()
+            if len(parts) == 4:
+                try:
+                    w, h = float(parts[2]), float(parts[3])
+                except ValueError:
+                    w = h = 0.0
+        if w <= 0 or h <= 0:
+            d = {k.lower(): float(v) for k, v in _SVG_WH.findall(tag)}
+            w, h = d.get("width", 0.0), d.get("height", 0.0)
+    if w <= 0 or h <= 0:
+        return W, H
+    s = SHORT_SIDE / min(w, h)
+    if max(w, h) * s > MAX_LONG:
+        s = MAX_LONG / max(w, h)
+    ow, oh = int(round(w * s)), int(round(h * s))
+    return max(2, ow - ow % 2), max(2, oh - oh % 2)   # even dims for encoders
 
 
 def haversine(lat1, lon1, lat2, lon2):
@@ -316,9 +355,10 @@ def sample_ctx():
     }
 
 
-def rasterize(svg_str):
-    """SVG string -> RGBA PIL image at W x H (transparent background)."""
-    data = bytes(resvg_py.svg_to_bytes(svg_string=svg_str, width=W, height=H))
+def rasterize(svg_str, size=(W, H)):
+    """SVG string -> RGBA PIL image at size (transparent background)."""
+    data = bytes(resvg_py.svg_to_bytes(svg_string=svg_str,
+                                       width=size[0], height=size[1]))
     img = Image.open(io.BytesIO(data))
     return img if img.mode == "RGBA" else img.convert("RGBA")
 
@@ -326,7 +366,7 @@ def rasterize(svg_str):
 def validate_design(tmpl):
     """Render one frame with sample values; raises TemplateError/ValueError."""
     try:
-        rasterize(render_template(tmpl, sample_ctx()))
+        rasterize(render_template(tmpl, sample_ctx()), canvas_size(tmpl))
     except TemplateError:
         raise
     except Exception as e:
@@ -354,24 +394,32 @@ def render_png_bytes(ride, tmpl, start_sec, end_sec, at_sec):
     ft, ch, nframes = clip_arrays(ride, start_sec, end_sec)
     i = max(0, min(int((at_sec - start_sec) * FPS), nframes - 1))
     img = rasterize(render_template(
-        tmpl, frame_ctx(ride.start_sec_local, i, ft, ch, nframes, _consts(ride))))
+        tmpl, frame_ctx(ride.start_sec_local, i, ft, ch, nframes, _consts(ride))),
+        canvas_size(tmpl))
     buf = io.BytesIO()
     img.save(buf, "PNG")
     return buf.getvalue()
 
 
-# worker globals set once per process (template is constant across frames)
+# worker globals set once per process — template, canvas size and the per-ride
+# constants are the same for every frame, so they never ride on a task payload
+# (track_points is ~5 KB; at 30 fps an hour-long clip would queue ~0.5 GB of it)
 _W_TMPL = None
+_W_SIZE = (W, H)
+_W_CONSTS = {}
 
 
-def _worker_init(tmpl):
-    global _W_TMPL
-    _W_TMPL = tmpl
+def _worker_init(tmpl, size, consts):
+    global _W_TMPL, _W_SIZE, _W_CONSTS
+    _W_TMPL, _W_SIZE, _W_CONSTS = tmpl, size, consts
 
 
 def _worker_render(ctx):
-    return rasterize(render_template(_W_TMPL, ctx)).tobytes()
+    ctx.update(_W_CONSTS)
+    return rasterize(render_template(_W_TMPL, ctx), _W_SIZE).tobytes()
 
+
+BATCH = 1800   # frames fed to the pool at a time (~1 min of video)
 
 ENCODERS = {
     "qtrle":  {"ext": ".mov", "args": ["-c:v", "qtrle"]},
@@ -395,31 +443,39 @@ def render_video(ride, tmpl, start_sec, end_sec, out_path, alpha="qtrle",
     if nframes < 1:
         raise ValueError("empty time range")
 
-    cmd = [ffmpeg, "-y", "-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{W}x{H}",
+    ow, oh = canvas_size(tmpl)
+    cmd = [ffmpeg, "-y", "-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{ow}x{oh}",
            "-r", str(FPS), "-i", "-"] + ENCODERS[alpha]["args"] + [out_path]
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE,
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     njobs = jobs or (os.cpu_count() or 1)
     njobs = max(1, min(njobs, nframes))
-    consts = _consts(ride)
-    ctxs = (frame_ctx(ride.start_sec_local, i, ft, ch, nframes, consts)
-            for i in range(nframes))
     t_start = time.time()
     ok = True
+    k = -1
     try:
-        # frames are independent -> render across a process pool, write in order
-        with mp.Pool(njobs, initializer=_worker_init, initargs=(tmpl,)) as pool:
-            for k, buf in enumerate(pool.imap(_worker_render, ctxs, chunksize=4)):
-                if cancelled and cancelled():
-                    ok = False
-                    pool.terminate()
+        # frames are independent -> render across a process pool, write in order.
+        # Fed in batches: imap would otherwise queue every frame's ctx up front,
+        # which for hour-long clips (100k+ frames) is a lot of live memory.
+        with mp.Pool(njobs, initializer=_worker_init,
+                     initargs=(tmpl, (ow, oh), _consts(ride))) as pool:
+            for b0 in range(0, nframes, BATCH):
+                ctxs = [frame_ctx(ride.start_sec_local, i, ft, ch, nframes)
+                        for i in range(b0, min(b0 + BATCH, nframes))]
+                for buf in pool.imap(_worker_render, ctxs, chunksize=4):
+                    k += 1
+                    if cancelled and cancelled():
+                        ok = False
+                        pool.terminate()
+                        break
+                    proc.stdin.write(buf)
+                    if progress:
+                        el = time.time() - t_start
+                        fps = (k + 1) / el if el > 0 else 0
+                        eta = (nframes - k - 1) / fps if fps > 0 else 0
+                        progress(k + 1, nframes, fps, eta)
+                if not ok:
                     break
-                proc.stdin.write(buf)
-                if progress:
-                    el = time.time() - t_start
-                    fps = (k + 1) / el if el > 0 else 0
-                    eta = (nframes - k - 1) / fps if fps > 0 else 0
-                    progress(k + 1, nframes, fps, eta)
     except BaseException:
         proc.kill()
         raise

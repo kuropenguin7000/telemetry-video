@@ -1,0 +1,71 @@
+<svg viewBox="0 0 720 405" xmlns="http://www.w3.org/2000/svg">
+<!--
+  landscape_map — 16:9 HUD for long-form YouTube rides (renders 1920x1080).
+
+  The map tracker is fully transparent: no card, no panel — just the route
+  drawn straight over the footage, kept legible by a dark halo stroke under
+  each line instead of a blur filter (halos are far cheaper per frame, which
+  matters over 100k+ frames).
+
+  Map channels (0..100 box, north up, provided by the engine):
+    track_points  full-ride polyline "x,y x,y ..."  (constant)
+    track_len     total arc length of that polyline (constant)
+    track_dist    arc length traveled so far        (per frame)
+    pos_x, pos_y  current position                  (per frame)
+
+  Layout: 5% title-safe margins (x 36..684, y 20..385) and nothing below
+  y=356, which YouTube's player controls cover on hover.
+-->
+<defs>
+  <!-- tight filter regions: cost scales with the filtered area -->
+  <filter id="soft" x="-12%" y="-25%" width="124%" height="150%">
+    <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#000000" flood-opacity="0.55"/>
+  </filter>
+</defs>
+
+<g opacity="{{ clamp(clip_t/0.5, 0, 1) | .2f }}" font-family="Segoe UI">
+
+  <!-- ················ clock + elapsed (top-left) ················ -->
+  <g filter="url(#soft)">
+    <text x="40" y="56" font-size="20" font-weight="300" letter-spacing="1.6" fill="#FFFFFF" fill-opacity="0.92">{{ clock24 }}</text>
+    <text x="40" y="76" font-size="10" font-weight="600" letter-spacing="2.4" fill="#FFFFFF" fill-opacity="0.55">ELAPSED {{ duration_hms }}</text>
+  </g>
+
+  <!-- ················ hero speed + stat row (bottom-left) ················ -->
+  <g filter="url(#soft)">
+    <text x="132" y="350" text-anchor="end" font-size="78" font-weight="200" fill="#FFFFFF" fill-opacity="0.96">{{ speed | .0f }}</text>
+    <text x="140" y="350" font-size="13" font-weight="400" letter-spacing="1.6" fill="#FFFFFF" fill-opacity="0.6">KM/H</text>
+
+    <text x="196" y="316" font-size="10" font-weight="600" letter-spacing="2.4" fill="#FFFFFF" fill-opacity="0.55">DIST</text>
+    <text x="196" y="348" font-size="24" font-weight="300" fill="#FFFFFF" fill-opacity="0.92">{{ dist_km | .1f }}<tspan font-size="13" fill-opacity="0.6" dx="3">km</tspan></text>
+
+    <text x="282" y="316" font-size="10" font-weight="600" letter-spacing="2.4" fill="#FFFFFF" fill-opacity="0.55">ELEV</text>
+    <text x="282" y="348" font-size="24" font-weight="300" fill="#FFFFFF" fill-opacity="0.92">{{ ele | .0f }}<tspan font-size="13" fill-opacity="0.6" dx="3">m</tspan></text>
+
+    <text x="366" y="316" font-size="10" font-weight="600" letter-spacing="2.4" fill="#FFFFFF" fill-opacity="0.55">CLIMB</text>
+    <text x="366" y="348" font-size="24" font-weight="300" fill="#FFFFFF" fill-opacity="0.92">{{ climb | .0f }}<tspan font-size="13" fill-opacity="0.6" dx="3">m</tspan></text>
+
+    <text x="448" y="316" font-size="10" font-weight="600" letter-spacing="2.4" fill="#FFFFFF" fill-opacity="0.55">HEART</text>
+    <circle cx="452" cy="340" r="3" fill="{{ zone_color(hr) }}"/>
+    <text x="462" y="348" font-size="24" font-weight="300" fill="#FFFFFF" fill-opacity="0.92">{{ hr | .0f }}<tspan font-size="13" fill-opacity="0.6" dx="3">bpm</tspan></text>
+  </g>
+
+  <!-- ················ transparent map tracker (bottom-right) ················ -->
+  <g filter="url(#soft)">
+    <text x="556" y="212" font-size="10" font-weight="600" letter-spacing="2.4" fill="#FFFFFF" fill-opacity="0.55">ROUTE</text>
+    <text x="682" y="212" text-anchor="end" font-size="10" font-weight="600" letter-spacing="1.2" fill="#57D9C6" fill-opacity="0.85">{{ 100*track_dist/max(track_len, 0.001) | .0f }}%</text>
+  </g>
+  <g transform="translate(556 224) scale(1.26)" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <!-- dark halo under everything: legible over bright footage without a blur -->
+    <polyline points="{{ track_points }}" stroke="#000000" stroke-opacity="0.45" stroke-width="3.6"/>
+    <!-- full route, faint -->
+    <polyline points="{{ track_points }}" stroke="#FFFFFF" stroke-opacity="0.42" stroke-width="1.4"/>
+    <!-- traveled so far, mint (arc-length dash, so out-and-back overlaps work) -->
+    <polyline points="{{ track_points }}" stroke="#57D9C6" stroke-width="2.1" stroke-dasharray="{{ track_dist | .2f }} {{ track_len + 5 | .2f }}"/>
+    <!-- position: sonar ping + dot -->
+    <circle cx="{{ pos_x | .2f }}" cy="{{ pos_y | .2f }}" r="{{ 4 + 7*((clip_t*0.7) % 1) | .2f }}" stroke="#57D9C6" stroke-opacity="{{ 0.45*(1 - ((clip_t*0.7) % 1)) | .2f }}" stroke-width="1.2"/>
+    <circle cx="{{ pos_x | .2f }}" cy="{{ pos_y | .2f }}" r="3.4" fill="#57D9C6" stroke="#0B1014" stroke-opacity="0.8" stroke-width="1.2"/>
+  </g>
+
+</g>
+</svg>

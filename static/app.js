@@ -5,6 +5,8 @@ const $ = (s) => document.querySelector(s);
 const state = {
   gpx: null,        // ride info from /api/gpx
   designId: null,
+  canvas: [1080, 1920],   // output size of the selected design
+  zoomed: false,
   // 0..1 within [start,end]; default mid-clip so designs with intro fades
   // (opacity driven by clip_t) don't preview as a blank first frame
   previewAtFrac: 0.5,
@@ -133,16 +135,31 @@ async function loadDesigns() {
   if (first && !state.designId) first.click();
 }
 
+/* the preview box follows the design's own canvas (9:16, 16:9, …) and so do
+   the safe-zone guides: social crops for portrait, YouTube title-safe +
+   player-controls strip for landscape. Landscape also widens the whole
+   preview column — a 16:9 frame in the narrow sidebar is unreadably small. */
+function applyCanvas(d) {
+  state.canvas = [d.w, d.h];
+  document.querySelector(".frame-box").style.aspectRatio = `${d.w} / ${d.h}`;
+  $("#safe-overlay").classList.toggle("land", d.w > d.h);
+  document.body.classList.toggle("wide-preview", d.w > d.h);
+  $("#canvas-info").textContent = `${d.ratio} · ${d.w}×${d.h}`;
+  if (state.zoomed) fitZoom();
+}
+
 function addChip(d) {
   const box = $("#design-chips");
   const b = document.createElement("button");
   b.className = "chip";
   b.dataset.id = d.id;
-  b.innerHTML = d.name + (d.preset ? '<span class="tag">preset</span>' : '<span class="tag">custom</span>');
+  b.innerHTML = d.name + `<span class="tag">${d.ratio}</span>`
+    + (d.preset ? "" : '<span class="tag">custom</span>');
   b.addEventListener("click", () => {
     box.querySelectorAll(".chip").forEach((c) => c.classList.remove("sel"));
     b.classList.add("sel");
     state.designId = d.id;
+    applyCanvas(d);
     $("#design-error").classList.add("hidden");
     refreshAll();
   });
@@ -265,6 +282,75 @@ async function doPreview() {
 $("#safe-toggle").addEventListener("change", () =>
   $("#safe-overlay").classList.toggle("show", $("#safe-toggle").checked));
 $("#safe-overlay").classList.add("show");
+
+/* ---------- enlarged preview ----------
+   The live .frame-box (and the scrubber) are moved into the overlay rather
+   than cloned, so previews keep landing in the same <img> while zoomed. */
+const frameBox = document.querySelector(".frame-box");
+
+function fitZoom() {
+  const [w, h] = state.canvas;
+  const s = Math.min((innerWidth * 0.92) / w, (innerHeight - 130) / h);
+  frameBox.style.width = Math.round(w * s) + "px";
+  frameBox.style.height = Math.round(h * s) + "px";
+}
+
+function setZoom(on) {
+  const scrub = document.querySelector(".scrub");
+  state.zoomed = on;
+  if (on) {
+    $("#zoom-slot").append(frameBox, scrub);
+    $("#zoom").classList.remove("hidden");
+    fitZoom();
+  } else {
+    $("#frame-slot").appendChild(frameBox);
+    $(".preview-pane").appendChild(scrub);   // scrub is the pane's last child
+    $("#zoom").classList.add("hidden");
+    frameBox.style.width = frameBox.style.height = "";
+  }
+}
+
+frameBox.addEventListener("click", () => setZoom(!state.zoomed));
+$("#zoom-btn").addEventListener("click", () => setZoom(true));
+$("#zoom-close").addEventListener("click", () => setZoom(false));
+$("#zoom").addEventListener("click", (e) => { if (e.target.id === "zoom") setZoom(false); });
+window.addEventListener("keydown", (e) => { if (e.key === "Escape" && state.zoomed) setZoom(false); });
+window.addEventListener("resize", () => { if (state.zoomed) fitZoom(); });
+
+/* ---------- preview background image (client-side only) ---------- */
+let bgUrl = null;
+function setBg(file) {
+  if (!file) return;
+  if (!file.type.startsWith("image/")) { toast("Background must be an image."); return; }
+  const url = URL.createObjectURL(file);
+  const img = $("#bg-img");
+  img.src = url;
+  img.classList.add("show");
+  if (bgUrl) URL.revokeObjectURL(bgUrl);
+  bgUrl = url;
+  $("#bg-clear").classList.remove("hidden");
+}
+function clearBg() {
+  const img = $("#bg-img");
+  img.classList.remove("show");
+  img.removeAttribute("src");
+  if (bgUrl) { URL.revokeObjectURL(bgUrl); bgUrl = null; }
+  $("#bg-file").value = "";
+  $("#bg-clear").classList.add("hidden");
+}
+$("#bg-file").addEventListener("change", (e) => setBg(e.target.files[0]));
+$("#bg-clear").addEventListener("click", clearBg);
+// drop an image anywhere on the preview frame to set the background
+(() => {
+  const box = document.querySelector(".frame-box");
+  box.addEventListener("dragover", (e) => { e.preventDefault(); box.classList.add("bg-drop"); });
+  box.addEventListener("dragleave", () => box.classList.remove("bg-drop"));
+  box.addEventListener("drop", (e) => {
+    e.preventDefault();
+    box.classList.remove("bg-drop");
+    setBg(e.dataTransfer.files[0]);
+  });
+})();
 // set from state, not the HTML attribute — survives cached HTML and the
 // browser's form-state restoration
 $("#preview-slider").value = state.previewAtFrac * 1000;

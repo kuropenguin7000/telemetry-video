@@ -35,11 +35,17 @@ header { padding: 20px 28px 6px; }
 
 main {
   display: grid;
-  grid-template-columns: minmax(420px, 1fr) minmax(300px, 380px);
+  grid-template-columns: minmax(420px, 1fr) minmax(320px, 420px);
   gap: 22px;
   padding: 18px 28px 40px;
   align-items: start;
-  max-width: 1200px;
+  max-width: 1360px;
+}
+/* landscape designs get the wider column — a 16:9 frame in a 380px sidebar is
+   only ~210px tall, far too small to judge detail */
+body.wide-preview main {
+  grid-template-columns: minmax(380px, 480px) minmax(560px, 1fr);
+  max-width: 1800px;
 }
 
 /* ---------- cards ---------- */
@@ -164,32 +170,81 @@ button.primary:disabled { background: var(--card-2); color: var(--muted); cursor
   border-radius: 14px; padding: 16px 18px;
 }
 .preview-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.preview-ctrls { display: flex; align-items: center; gap: 10px; }
 .toggle { color: var(--muted); font-size: 13px; display: flex; gap: 6px; align-items: center; cursor: pointer; }
 .toggle input { accent-color: var(--accent); }
+.bg-btn {
+  background: var(--card-2); border: 1px solid var(--line); color: var(--text);
+  padding: 4px 10px; border-radius: 8px; cursor: pointer; font-size: 12.5px;
+  transition: border-color .15s;
+}
+.bg-btn:hover { border-color: var(--accent); }
+.bg-clear {
+  background: var(--card-2); border: 1px solid var(--line); color: var(--muted);
+  width: 24px; height: 24px; border-radius: 8px; cursor: pointer; font-size: 12px;
+  line-height: 1; padding: 0;
+}
+.bg-clear:hover { border-color: var(--danger); color: var(--danger); }
 
 .frame-box {
   position: relative; width: 100%; aspect-ratio: 9 / 16;
   border-radius: 10px; overflow: hidden; border: 1px solid var(--line);
+  cursor: zoom-in;
 }
+
+/* ---------- enlarged preview ---------- */
+.zoom-btn {
+  background: var(--card-2); color: var(--muted); border: 1px solid var(--line);
+  border-radius: 7px; width: 26px; height: 26px; cursor: pointer;
+  font-size: 14px; line-height: 1; padding: 0;
+}
+.zoom-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+#zoom {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(8, 10, 14, .92);
+  display: flex; align-items: center; justify-content: center;
+}
+#zoom.hidden { display: none; }
+#zoom-slot { display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
+#zoom .frame-box { cursor: zoom-out; border-color: #3a4150; }
+#zoom-close {
+  position: absolute; top: 18px; right: 22px;
+  width: 34px; height: 34px; border-radius: 9px; cursor: pointer;
+  background: var(--card-2); color: var(--text); border: 1px solid var(--line);
+  font-size: 16px; line-height: 1; padding: 0;
+}
+#zoom-close:hover { border-color: var(--danger); color: var(--danger); }
+.frame-box.bg-drop { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-dim); }
 .checker {
   position: absolute; inset: 0;
   background:
     repeating-conic-gradient(#23262e 0% 25%, #1a1d24 0% 50%) 0 0 / 24px 24px;
 }
+#bg-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: none; }
+#bg-img.show { display: block; }
 #preview-img { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
 #preview-img.show { display: block; }
 
-#safe-overlay { position: absolute; inset: 0; pointer-events: none; display: none; }
+/* portrait defaults = TikTok/Reels crops; .land = YouTube title-safe (5%)
+   with a taller bottom strip for the player controls */
+#safe-overlay {
+  position: absolute; inset: 0; pointer-events: none; display: none;
+  --st: 7.78%; --sb: 18.75%; --sl: 3.95%; --sr: 14.81%;
+}
+#safe-overlay.land { --st: 5%; --sb: 12%; --sl: 5%; --sr: 5%; }
 #safe-overlay.show { display: block; }
 #safe-overlay .unsafe { position: absolute; background: rgba(239,106,90,.16); }
-#safe-overlay .unsafe.top    { left: 0; right: 0; top: 0;    height: 7.78%; }
-#safe-overlay .unsafe.bottom { left: 0; right: 0; bottom: 0; height: 18.75%; }
-#safe-overlay .unsafe.left   { left: 0;  top: 7.78%; bottom: 18.75%; width: 3.95%; }
-#safe-overlay .unsafe.right  { right: 0; top: 7.78%; bottom: 18.75%; width: 14.81%; }
+#safe-overlay .unsafe.top    { left: 0; right: 0; top: 0;    height: var(--st); }
+#safe-overlay .unsafe.bottom { left: 0; right: 0; bottom: 0; height: var(--sb); }
+#safe-overlay .unsafe.left   { left: 0;  top: var(--st); bottom: var(--sb); width: var(--sl); }
+#safe-overlay .unsafe.right  { right: 0; top: var(--st); bottom: var(--sb); width: var(--sr); }
 #safe-overlay .safe-rect {
-  position: absolute; left: 3.95%; right: 14.81%; top: 7.78%; bottom: 18.75%;
+  position: absolute; left: var(--sl); right: var(--sr); top: var(--st); bottom: var(--sb);
   border: 1px dashed rgba(87,217,198,.55);
 }
+
+.canvas-info { font-size: 11px; font-weight: 500; color: var(--muted); letter-spacing: .4px; }
 
 .preview-msg {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
